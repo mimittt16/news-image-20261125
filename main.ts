@@ -1,6 +1,6 @@
 // The World in One Day — Wednesday, 25 November 2026 (Node 22, standard library only).
 // Its image is the entry.png beside this file, and the program validates it as a whole
-// PNG (signature, 1024x1024 IHDR, every chunk's CRC32, exact end at IEND) and copies
+// PNG (signature, 1024x1024 8-bit RGB/RGBA IHDR first, every chunk's CRC32, exact end at IEND) and copies
 // it to /output/entry.png. The gate takes a whole PNG of at most 1 MiB and 1024 by
 // 1024 pixels, and the judge sees exactly the bytes copied.
 //
@@ -47,9 +47,16 @@ while (off < png.length) {
   if (storedCrc !== actualCrc) throw new Error(`entry.png: CRC32 mismatch in ${type} chunk`);
   if (type === 'IHDR') {
     sawIhdr = true;
+    if (off !== 8) throw new Error('entry.png: IHDR is not the first chunk');
+    if (len !== 13) throw new Error(`entry.png: IHDR length ${len}, expected 13`);
     const w = png.readUInt32BE(off + 8);
     const h = png.readUInt32BE(off + 12);
     if (w !== 1024 || h !== 1024) throw new Error(`entry.png: ${w}x${h}, expected 1024x1024`);
+    const bitDepth = png[off + 16];
+    const colorType = png[off + 17];
+    if (bitDepth !== 8 || (colorType !== 2 && colorType !== 6)) {
+      throw new Error(`entry.png: bit depth ${bitDepth}, color type ${colorType}, expected 8-bit RGB/RGBA`);
+    }
   }
   if (type === 'IEND') {
     sawIend = true;
